@@ -2,28 +2,36 @@
 
 import shap
 import numpy as np
-from app.predict import model  # reuse the loaded model
+from app.predict import model  # your pipeline
 from pathlib import Path
 import joblib
 
-# 1. Prepare SHAP explainer object
-explainer = shap.Explainer(model.named_steps['clf'], feature_names=None)
+# 1. Create a dummy sample input for the masker
+# We'll create a random sample similar to training data (scaled)
+# (Better practice later: save X_train mean/std and load it)
+
+dummy_input = np.random.normal(0, 1, size=(100, 23))  # 100 samples, 23 features
+
+# 2. Create LinearExplainer for logistic regression
+explainer = shap.LinearExplainer(
+    model.named_steps['clf'],
+    masker=dummy_input,
+    feature_perturbation="interventional"
+)
 
 def shap_explain(features: list[float]) -> list[dict]:
     """
     Given a list of numeric feature values, returns a list of feature contributions.
     Each contribution shows how much each feature pushed the model output higher or lower.
     """
-    # 2. Convert input features into the right shape
     arr = np.array(features, dtype=float).reshape(1, -1)
+    scaled_arr = model.named_steps['scaler'].transform(arr)
 
-    # 3. Calculate SHAP values for the single prediction
-    shap_values = explainer(arr)
+    # 3. Calculate SHAP values
+    shap_values = explainer(scaled_arr)
 
-    # 4. Extract values
     shap_value = shap_values.values[0]  # For the first (and only) instance
 
-    # 5. Map features to their SHAP values
     contributions = [
         {"feature_index": i, "shap_value": float(value)}
         for i, value in enumerate(shap_value)
