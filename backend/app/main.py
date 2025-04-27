@@ -1,32 +1,29 @@
+# backend/app/main.py
+
 from fastapi import FastAPI
 from pydantic import BaseModel
+from app.predict import predict_credit
 
 app = FastAPI()
 
-# Temporarysimple endpoint
-@app.get("/")
-async def root():
-    return {"message": "Welcome to Explainable Credit Scoring API"}
+class PredictRequest(BaseModel):
+    """
+    Defines the JSON schema for /predict:
+      { "features": [f1, f2, ..., fN] }
+    """
+    features: list[float]
 
-# For testing : defien an input schima
-class UserInfo(BaseModel):
-    income: float
-    age: int
-    credit_history: float
-    debt_to_income_ratio: float
-    
-# Dummy predict endpoint
 @app.post("/predict")
-async def predict(user_info: UserInfo):
-    # Dummy plogic: prdict approval if income > 50k
-    if user_info.income > 50000:
-        prediction = "Approved"
-    else:
-        prediction = "Rejected"
-    
+async def predict_endpoint(req: PredictRequest):
+    """
+    Receives a PredictRequest, calls predict_credit, and returns JSON:
+      {
+        "prediction": <0 or 1>,
+        "probability": <float between 0 and 1>
+      }
+    """
+    class_pred, proba = predict_credit(req.features)
     return {
-        "prediction": prediction,
-        "input": user_info.dict()
+        "prediction": class_pred,
+        "probability": proba
     }
-    
-    
